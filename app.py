@@ -1,33 +1,23 @@
 import os
 from flask import Flask, request, send_file
 from flask_cors import CORS
+from rembg import remove
 from PIL import Image
 import io
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
-
-session = None
-
-def get_session():
-    global session
-    if session is None:
-        from rembg import new_session
-        session = new_session("u2netp")  # Modelo ultra ligero de muy bajo consumo de RAM
-    return session
+CORS(app)
 
 @app.route('/remove-bg', methods=['POST'])
 def remove_bg():
     if 'image' not in request.files:
         return 'No image uploaded', 400
     
-    from rembg import remove
-    
     file = request.files['image']
     input_image = Image.open(file.stream)
     
-    sess = get_session()
-    output_image = remove(input_image, session=sess)
+    # Modelo ligero para no agotar la RAM de 512MB
+    output_image = remove(input_image, model_name="u2netp")
     
     img_io = io.BytesIO()
     output_image.save(img_io, 'PNG')
