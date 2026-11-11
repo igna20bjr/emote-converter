@@ -241,7 +241,8 @@
         formData.append('image', currentFile);
 
         try {
-            const response = await fetch(`http://${window.location.hostname}:5000/remove-bg`, {
+            // Cambias la URL por la de Render:
+              const response = await fetch('https://api-emotes-yb5h.onrender.com/remove-bg', {
                 method: 'POST',
                 body: formData
             });
