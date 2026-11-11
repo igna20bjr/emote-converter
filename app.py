@@ -1,12 +1,15 @@
 import os
 from flask import Flask, request, send_file
 from flask_cors import CORS
-from rembg import remove
+from rembg import remove, new_session
 from PIL import Image
 import io
 
 app = Flask(__name__)
 CORS(app)
+
+# Crear la sesión con el modelo ligero u2netp
+session = new_session("u2netp")
 
 @app.route('/remove-bg', methods=['POST'])
 def remove_bg():
@@ -16,8 +19,8 @@ def remove_bg():
     file = request.files['image']
     input_image = Image.open(file.stream)
     
-    # Modelo ligero para no agotar la RAM de 512MB
-    output_image = remove(input_image, model_name="u2netp")
+    # Pasamos la sesión creada
+    output_image = remove(input_image, session=session)
     
     img_io = io.BytesIO()
     output_image.save(img_io, 'PNG')
