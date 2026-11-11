@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convertidor de Emotes Twitch</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0e0e10;
+            color: #efeff1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #18181b;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid #772ce8;
+        }
+        h1 { color: #a970ff; margin-bottom: 0.5rem; font-size: 1.5rem; }
+        p { color: #adadb8; font-size: 0.9rem; margin-bottom: 1.5rem; }
+        .drop-zone {
+            border: 2px dashed #a970ff;
+            border-radius: 8px;
+            padding: 2rem;
+            cursor: pointer;
+            background-color: #1f1f23;
+            transition: 0.2s;
+        }
+        .drop-zone:hover { background-color: #26262c; }
+        input[type="file"] { display: none; }
+        
+        .options-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 1.2rem;
+            justify-content: center;
+        }
+        .opt-btn {
+            background-color: #26262c;
+            color: #adadb8;
+            border: 1px solid #3f3f46;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+        .opt-btn:hover { background-color: #3f3f46; color: white; }
+        .opt-btn.active {
+            background-color: #772ce8;
+            color: white;
+            border-color: #a970ff;
+        }
+
+        .controls-group {
+            margin-top: 1rem;
+            background: #26262c;
+            padding: 10px 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #adadb8;
+        }
+        .controls-group input[type="range"] {
+            width: 60%;
+            accent-color: #772ce8;
+        }
+
+        .preview-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            margin-top: 1.5rem;
+            background: #0e0e10;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .preview-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.8rem;
+            color: #adadb8;
+        }
+        .preview-box img {
+            border-radius: 4px;
+            background: url('data:image/png;base64,iVBORw0KGgoAAAANSU5QAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAACpJREFUeNpiPHPmzH8gYGJgRNXgM5nBwEAiGv4PBjYS0fB/MLCRiAYGAAn3C0F5gYfVAAAAAElEQVR42mP8//8/AwhgYGBgAAgwAAMDAfV/7949AAAAAElFTkSuQmCC');
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+        
+        .main-btn {
+            background-color: #772ce8;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: 0.2s;
+            width: 100%;
+            margin-top: 1.2rem;
+        }
+        .main-btn:hover { background-color: #5c16c5; }
+        .main-btn:disabled { background-color: #3a3a3d; cursor: not-allowed; opacity: 0.6; }
+        
+        .badge {
+            background: #00f59b;
+            color: #000;
+            font-size: 0.7rem;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+        .status-msg {
+            color: #a970ff;
+            font-size: 0.85rem;
+            margin-top: 10px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <span class="badge">⚡ SERVIDOR CON IA DEDICADA</span>
+    <h1>Convertidor de Emotes Twitch</h1>
+    <p>Sube tu imagen, elimina el fondo con IA HD y ajusta el encuadre en tiempo real.</p>
+
+    <div class="drop-zone" onclick="document.getElementById('fileInput').click()">
+        <span id="uploadText">📁 Haz clic aquí para seleccionar tu imagen</span>
+        <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <div class="options-group" id="optionsGroup" style="display:none;">
+        <button class="opt-btn active" id="btnNormal" onclick="setMode(false)">🖼️ Fondo Normal</button>
+        <button class="opt-btn" id="btnNoBg" onclick="setMode(true)">✨ Quitar Fondo (IA HD)</button>
+    </div>
+
+    <div class="controls-group" id="controlsGroup" style="display:none;">
+        <span>Posición Vertical:</span>
+        <input type="range" id="posY" min="0" max="100" value="50">
+    </div>
+
+    <div class="status-msg" id="statusMsg" style="display:none;"></div>
+
+    <div class="preview-container" id="previews" style="display:none;">
+        <div class="preview-box">
+            <span>112x112</span>
+            <img id="img112">
+        </div>
+        <div class="preview-box">
+            <span>56x56</span>
+            <img id="img56">
+        </div>
+        <div class="preview-box">
+            <span>28x28</span>
+            <img id="img28">
+        </div>
+    </div>
+
+    <button class="main-btn" id="downloadZipBtn" disabled onclick="descargarZip()">Descargar Pack .ZIP</button>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const downloadZipBtn = document.getElementById('downloadZipBtn');
+    const previews = document.getElementById('previews');
+    const optionsGroup = document.getElementById('optionsGroup');
+    const controlsGroup = document.getElementById('controlsGroup');
+    const statusMsg = document.getElementById('statusMsg');
+    const uploadText = document.getElementById('uploadText');
+    const posYInput = document.getElementById('posY');
+    
+    let originalImageObj = null;
+    let transparentImageObj = null;
+    let baseFileName = "emote";
+    let removeBgActive = false;
+    let currentFile = null;
+    let generatedBlobs = [];
+
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        currentFile = file;
+        baseFileName = file.name.split('.')[0];
+        uploadText.innerText = `📄 Imagen: ${file.name}`;
+        
+        const img = new Image();
+        img.onload = function() {
+            originalImageObj = img;
+            transparentImageObj = null;
+            optionsGroup.style.display = 'flex';
+            controlsGroup.style.display = 'flex';
+            renderizarVistaPrevia();
+        };
+        img.src = URL.createObjectURL(file);
+    });
+
+    posYInput.addEventListener('input', () => {
+        renderizarVistaPrevia();
+    });
+
+    async function setMode(removeBg) {
+        removeBgActive = removeBg;
+        document.getElementById('btnNormal').classList.toggle('active', !removeBg);
+        document.getElementById('btnNoBg').classList.toggle('active', removeBg);
+
+        if (removeBgActive && !transparentImageObj) {
+            await obtenerFondoServidor();
+        } else {
+            renderizarVistaPrevia();
+        }
+    }
+
+    async function obtenerFondoServidor() {
+        if (!currentFile) return;
+
+        downloadZipBtn.disabled = true;
+        statusMsg.innerText = "🤖 El servidor está procesando el recorte con IA HD...";
+        statusMsg.style.display = 'block';
+
+        const formData = new FormData();
+        formData.append('image', currentFile);
+
+        try {
+            const response = await fetch(`http://${window.location.hostname}:5000/remove-bg`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) throw new Error("Error en servidor");
+
+            const blob = await response.blob();
+            const img = new Image();
+            img.onload = function() {
+                transparentImageObj = img;
+                statusMsg.style.display = 'none';
+                renderizarVistaPrevia();
+            };
+            img.src = URL.createObjectURL(blob);
+        } catch (err) {
+            console.error(err);
+            statusMsg.innerText = "⚠️ Asegúrate de iniciar 'app.py' en la terminal de tu servidor.";
+        }
+    }
+
+    function renderizarVistaPrevia() {
+        const fuente = removeBgActive ? transparentImageObj : originalImageObj;
+        if (!fuente) return;
+
+        generatedBlobs = [];
+        const sizes = [112, 56, 28];
+
+        const srcWidth = fuente.width;
+        const srcHeight = fuente.height;
+        const minDim = Math.min(srcWidth, srcHeight);
+        
+        const offsetPercent = posYInput.value / 100;
+        const maxSy = srcHeight - minDim;
+        
+        const sx = (srcWidth - minDim) / 2;
+        const sy = maxSy > 0 ? maxSy * offsetPercent : 0;
+
+        let processedCount = 0;
+
+        sizes.forEach(size => {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.drawImage(fuente, sx, sy, minDim, minDim, 0, 0, size, size);
+
+            canvas.toBlob(blob => {
+                generatedBlobs.push({
+                    name: `${baseFileName}_${removeBgActive ? 'transparent_' : ''}${size}x${size}.webp`,
+                    blob: blob
+                });
+                
+                document.getElementById(`img${size}`).src = URL.createObjectURL(blob);
+                
+                processedCount++;
+                if (processedCount === sizes.length) {
+                    previews.style.display = 'flex';
+                    downloadZipBtn.disabled = false;
+                }
+            }, 'image/webp', 0.95);
+        });
+    }
+
+    function descargarZip() {
+        if (typeof JSZip === "undefined") {
+            alert("Error al cargar la librería de compresión.");
+            return;
+        }
+
+        const zip = new JSZip();
+        generatedBlobs.forEach(item => {
+            zip.file(item.name, item.blob);
+        });
+
+        zip.generateAsync({type: "blob"}).then(function(content) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(content);
+            a.download = `${baseFileName}_emotes.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            setTimeout(() => {
+                resetearInterfaz();
+            }, 300);
+        });
+    }
+
+    function resetearInterfaz() {
+        fileInput.value = "";
+        originalImageObj = null;
+        transparentImageObj = null;
+        currentFile = null;
+        generatedBlobs = [];
+        removeBgActive = false;
+        posYInput.value = 50;
+        
+        previews.style.display = 'none';
+        optionsGroup.style.display = 'none';
+        controlsGroup.style.display = 'none';
+        statusMsg.style.display = 'none';
+        downloadZipBtn.disabled = true;
+        uploadText.innerText = "📁 Haz clic aquí para seleccionar tu imagen";
+        
+        document.getElementById('btnNormal').classList.add('active');
+        document.getElementById('btnNoBg').classList.remove('active');
+        
+        document.getElementById('img112').src = "";
+        document.getElementById('img56').src = "";
+        document.getElementById('img28').src = "";
+    }
+</script>
+
+</body>
+</html>
