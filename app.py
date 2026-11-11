@@ -8,10 +8,16 @@ import io
 app = Flask(__name__)
 CORS(app)
 
-# Crear la sesión con el modelo ligero u2netp
-session = new_session("u2netp")
+session = None
 
-@app.route('/remove-bg', methods=['POST'])
+def get_session():
+    global session
+    if session is None:
+        session = new_session("u2netp")
+    return session
+
+# strict_slashes=False permite recibir tanto /remove-bg como /remove-bg/
+@app.route('/remove-bg', methods=['POST'], strict_slashes=False)
 def remove_bg():
     if 'image' not in request.files:
         return 'No image uploaded', 400
@@ -19,8 +25,8 @@ def remove_bg():
     file = request.files['image']
     input_image = Image.open(file.stream)
     
-    # Pasamos la sesión creada
-    output_image = remove(input_image, session=session)
+    sess = get_session()
+    output_image = remove(input_image, session=sess)
     
     img_io = io.BytesIO()
     output_image.save(img_io, 'PNG')
